@@ -37,7 +37,8 @@ var imageRepository = new function() {
     };
     
     this.background.src = "img/bg.png";
-    this.ship.src = "img/ship.png";
+    //this.ship.src = "img/ship.png";
+    this.ship.src = "img/RocketShip.png";
     this.bullet.src = "img/bullet.png";
     this.enemy.src = "img/enemyship.png";
     this.enemyBullet.src = "img/enemybullet.png";
@@ -54,11 +55,16 @@ function Drawlable() {
     this.speed = 0;
     this.canvasWidth = 0;
     this.canvasHeight = 0;
+    this.collidableWith = "";
+    this.isColliding = false;
+    this.type = "";
     
     
-    this.draw = function() {
-        
-    };
+    this.draw = function() {};
+    this.move = function() {};
+    this.isCollidableWith = function(object) {
+        return (this.collidableWith == object.type);
+    }
 }
 
 function Background() {
@@ -140,7 +146,7 @@ function Game() {
                 }
             }
             
-            this.enemyBulletPool = new Pool(5);
+            this.enemyBulletPool = new Pool(10);
             this.enemyBulletPool.init("enemyBullet");
 
             
@@ -160,6 +166,7 @@ function Game() {
 function Pool(maxSize) {
     var size = maxSize;
     var pool = [];
+    this.type = "";
     
     this.init = function(type) {
         if (type == "bullet") {
@@ -167,6 +174,7 @@ function Pool(maxSize) {
                 var bullet = new Bullet(type);
                 
                 bullet.init(0,0,imageRepository.bullet.width, imageRepository.bullet.height);
+                bullet.collidableWith = "enemy";
                 pool[i] = bullet;
             }
         } else if (type == "enemyBullet") {
@@ -174,6 +182,7 @@ function Pool(maxSize) {
                 var enemyBullet = new Bullet(type);
                 
                 enemyBullet.init(0,0,imageRepository.enemyBullet.width, imageRepository.enemyBullet.height);
+                enemyBullet.collidableWith = "ship";
                 pool[i] = enemyBullet;
             }
         } else if (type == "enemy") {
@@ -188,6 +197,7 @@ function Pool(maxSize) {
     };
     
     this.get = function(x,y,speed) {
+        console.log(this.type);
         if (!pool[size-1].alive) {
             pool[size-1].spawn(x,y,speed);
             pool.unshift(pool.pop());
@@ -213,6 +223,17 @@ function Pool(maxSize) {
             }
         }
     };
+    
+    this.getActivePool = function() {
+        var obj = [];
+        for (var i = 0; i < size; i++) {
+            if(pool[i].alive) {
+                obj.push(pool[i]);
+            }
+        }
+        
+        return obj;
+    };
 }
 
 function Bullet(type) {
@@ -229,8 +250,9 @@ function Bullet(type) {
     this.draw = function() {
         this.context.clearRect(this.x, this.y, this.width, this.height);
         
-        
-        if (this.type == "bullet") {
+        if (this.isColliding) {
+            return true;
+        } else if (this.type == "bullet") {
             this.y -= this.speed;
             
             if (this.y <= 0 - this.height){
@@ -254,6 +276,7 @@ function Bullet(type) {
         this.y = 0;
         this.speed = 0;
         this.alive = false;
+        this.isColliding = false;
     }
 }
 
@@ -263,6 +286,9 @@ function Ship() {
     this.speed = 3;
     this.bulletPool = new Pool(30);
     this.bulletPool.init("bullet");
+    this.collidableWith = "enemyBullet";
+    this.type = "ship";
+    this.alive = true;
     
     var fireRate = 15;
     var counter = 0;
@@ -296,8 +322,12 @@ function Ship() {
                 this.y += this.speed;
                 if (this.y >= this.canvasHeight - this.height) this.y = this.canvasHeight-this.height;
             }
+        }
         
+        if (!this.isColliding) {
             this.draw();
+        } else {
+            this.alive = false;
         }
         
         if (KEY_STATUS.space && counter >= fireRate) {
@@ -317,6 +347,8 @@ function Enemy() {
     var precentFire = .01;
     var chance = 0;
     this.alive = false;
+    this.collidableWith = "bullet";
+    this.type = "enemy";
     
     this.spawn = function(x, y, speed) {
         this.x = x;
@@ -337,8 +369,6 @@ function Enemy() {
         this.x += this.speedX;
         this.y += this.speedY;
         
-        
-        
         if (this.x <= this.leftEdge) {
             this.speedX = this.speed;
         }
@@ -348,17 +378,24 @@ function Enemy() {
         }
         
         if (this.y >= this.bottomEdge - this.height) {
+            
             this.speed = 1.5;
             this.speedY = 0;
             this.speedX = -this.speed;
             this.y -= 5;
         }
         
-        this.context.drawImage(imageRepository.enemy, this.x, this.y);
+        if (!this.isColliding) {
+            this.context.drawImage(imageRepository.enemy, this.x, this.y);
         
-        chance = Math.floor(Math.random()*101);
-        if (chance/100 < precentFire) {
-            this.fire();
+            chance = Math.floor(Math.random()*101);
+            if (chance/100 < precentFire) {
+                this.fire();
+            }
+            
+            return false;
+        } else {
+            return true;
         }
     };
     
@@ -379,18 +416,71 @@ function Enemy() {
         this.speed = 0;
         this.speedX = 0;
         this.speedY = 0;
+        this.isColliding = false;
+        this.alive = false;
     }
 }
 
 Enemy.prototype = new Drawlable();
 
 function animate() {
-    requestAnimFrame(animate);
+    var objects = [];
+    
+    objects.push(game.ship);
+    objects = objects.concat(game.enemyBulletPool.getActivePool());
+    objects = objects.concat(game.enemyPool.getActivePool());
+    objects = objects.concat(game.ship.bulletPool.getActivePool());
+
+    for (var i = 0; i < objects.length; i++) {
+        var item1 = objects[i];
+        for (var j = 0; j < objects.length; j++) {
+            var item2 = objects[j];
+            
+            
+            if (item2.isCollidableWith(item1)) {
+                if (item1.x < item2.x + item2.width &&
+                    item1.x +item1.width > item2.x &&
+                    item1.y < item2.y + item2.width &&
+                    item1.y + item1.height > item2.y) {
+                        console.log("These two items are colliding");
+                        console.log(item1);
+                        console.log(item2);
+                        item1.isColliding = true;
+                        item2.isColliding = true;
+                }       
+            }
+        }
+    }
+    
     game.background.draw();
     game.ship.move();
     game.ship.bulletPool.animate();
     game.enemyPool.animate();
     game.enemyBulletPool.animate();
+    
+    if (game.enemyPool.getActivePool().length == 0) {
+            var height = imageRepository.enemy.height;
+            var width = imageRepository.enemy.width;
+            var x = 100;
+            var y = -height;
+            var spacer = height * 1.5
+            
+            for (var i = 1; i < 19; i++) {
+                game.enemyPool.get(x, y, 2);
+                x += width + 25;
+                
+                if (i % 6 == 0) {
+                    x = 100;
+                    y += spacer;
+                }
+            }
+    }
+    
+    if (game.ship.alive) {
+        requestAnimFrame(animate);
+    } else {
+        document.getElementById("message").innerText="GAME OVER";
+    }
 }
 
 /**

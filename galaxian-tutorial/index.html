@@ -3,6 +3,16 @@
     <head>
         <title>Space Shooter Tutorial</title>
         <style>
+            #message {
+                font-family: 'Press Start 2P', cursive;
+                position: absolute;
+                top: 175px;
+                left: 175px;
+                font-size: 32px;
+                z-index: 1;
+                color: white;
+            }
+        
             canvas {
                 position: absolute;
                 top: 0px;
@@ -32,7 +42,21 @@
         <canvas id="ship" width="600" height="360">
             Your Browser does not support canvas.
         </canvas>
+        <div id="message"></div>
         <script src="js/game.js"></script>
+        <script type="text/javascript">
+          WebFontConfig = {
+            google: { families: [ 'Press+Start+2P::latin' ] }
+          };
+          (function() {
+            var wf = document.createElement('script');
+            wf.src = ('https:' == document.location.protocol ? 'https' : 'http') +
+              '://ajax.googleapis.com/ajax/libs/webfont/1/webfont.js';
+            wf.type = 'text/javascript';
+            wf.async = 'true';
+            var s = document.getElementsByTagName('script')[0];
+            s.parentNode.insertBefore(wf, s);
+          })(); </script>
     </body>
     
 </html>
