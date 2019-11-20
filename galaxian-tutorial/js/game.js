@@ -37,7 +37,8 @@ var imageRepository = new function() {
     };
     
     this.background.src = "img/bg.png";
-    this.ship.src = "img/ship.png";
+    //this.ship.src = "img/ship.png";
+    this.ship.src = "img/cayden-ship.png";
     //this.ship.src = "img/RocketShip.png";
     this.bullet.src = "img/bullet.png";
     this.enemy.src = "img/enemyship.png";
